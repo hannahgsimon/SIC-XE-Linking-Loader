@@ -76,7 +76,8 @@ void printSymbolTable(Symbol symbolTable[], int symbolCount)
     printf("Symbol Table:\n");
     printf("%-20s %-6s %-10s %-6s\n", "Control Section", "Name", "Address", "Length");
 
-    for (int i = 0; i < symbolCount; i++) {
+    for (int i = 0; i < symbolCount; i++)
+    {
         printf("%-20s %-6s 0x%-8X %-6s\n",
             symbolTable[i].control_section,
             symbolTable[i].name,
@@ -84,6 +85,118 @@ void printSymbolTable(Symbol symbolTable[], int symbolCount)
             symbolTable[i].length);
     }
 }
+
+typedef struct MemoryBuffer
+{
+    unsigned short int memory_address[5];
+    unsigned short int contents1[9];
+    unsigned short int contents2[9];
+    unsigned short int contents3[9];
+    unsigned short int contents4[9];
+} MemoryBuffer;
+
+MemoryBuffer MEM[100];
+int memCount = 0;
+
+void addMem(unsigned short int address,
+    const unsigned short int* contents1,
+    const unsigned short int* contents2,
+    const unsigned short int* contents3,
+    const unsigned short int* contents4)
+{
+    // Set the memory address
+    MEM[memCount].memory_address[0] = address;
+    for (int i = 1; i < 5; i++)
+    {
+        MEM[memCount].memory_address[i] = 0; // Initialize remaining memory addresses to 0
+    }
+
+    // Copy contents into respective arrays
+    if (contents1 != NULL)
+    {
+        memcpy(MEM[memCount].contents1, contents1, sizeof(MEM[memCount].contents1));
+    }
+    else
+    {
+        memset(MEM[memCount].contents1, 0, sizeof(MEM[memCount].contents1)); // Set to 0 if contents1 is NULL
+    }
+
+    if (contents2 != NULL)
+    {
+        memcpy(MEM[memCount].contents2, contents2, sizeof(MEM[memCount].contents2));
+    }
+    else
+    {
+        memset(MEM[memCount].contents2, 0, sizeof(MEM[memCount].contents2));
+    }
+
+    if (contents3 != NULL)
+    {
+        memcpy(MEM[memCount].contents3, contents3, sizeof(MEM[memCount].contents3));
+    }
+    else
+    {
+        memset(MEM[memCount].contents3, 0, sizeof(MEM[memCount].contents3));
+    }
+
+    if (contents4 != NULL)
+    {
+        memcpy(MEM[memCount].contents4, contents4, sizeof(MEM[memCount].contents4));
+    }
+    else
+    {
+        memset(MEM[memCount].contents4, 0, sizeof(MEM[memCount].contents4));
+    }
+
+    memCount++;
+}
+
+void printMemoryTable()
+{
+    if (memCount == 0)
+    {
+        printf("Memory table is empty.\n");
+        return;
+    }
+
+    printf("Memory Table:\n");
+    printf("-------------------------------------------------------------------\n");
+    printf("| Address | Contents1         | Contents2         | Contents3         | Contents4         |\n");
+    printf("-------------------------------------------------------------------\n");
+
+    for (int i = 0; i < memCount; i++)
+    {
+        printf("| %7d | ", MEM[i].memory_address[0]);
+
+        // Print each contents array in the same row
+        for (int j = 0; j < 9; j++)
+        {
+            printf("%2d ", MEM[i].contents1[j]);
+        }
+        printf("| ");
+
+        for (int j = 0; j < 9; j++)
+        {
+            printf("%2d ", MEM[i].contents2[j]);
+        }
+        printf("| ");
+
+        for (int j = 0; j < 9; j++)
+        {
+            printf("%2d ", MEM[i].contents3[j]);
+        }
+        printf("| ");
+
+        for (int j = 0; j < 9; j++)
+        {
+            printf("%2d ", MEM[i].contents4[j]);
+        }
+        printf("|\n");
+    }
+
+    printf("-------------------------------------------------------------------\n");
+}
+
 
 
 //int main(int argc, char* argv[])
@@ -166,7 +279,6 @@ int main()
         }
     }
 
-    printSymbolTable(symbolTable, symbolCount);
     fclose(files[0]);
     fclose(files[1]);
     fclose(files[2]);
@@ -174,5 +286,60 @@ int main()
     {
         fclose(files[i - 1]);
     }*/
+    fopen_s(&files[0], "PROGA.txt", "r");
+    fopen_s(&files[1], "PROGB.txt", "r");
+    fopen_s(&files[2], "PROGC.txt", "r");
+
+    printSymbolTable(symbolTable, symbolCount);
+    FILE* OutputFile = fopen("OutputFile.txt", "w");
+    char LOCATION[9]; char HALF_BYTES[3];  char SIGN[2]; char SYMBOL[100];
+
+    addMem(3, 4, 4, 4, 4);
+    printMemoryTable();
+
+    for (int i = 0; i < 3; i++) //i < argc - 1
+    {
+        while (fgets(line, sizeof(line), files[i]))
+        {
+            if (line[0] == 'H')
+            {
+
+            }
+            else if (line[0] == 'T')
+            {
+
+            }
+            else if (line[0] == 'M')
+            {
+                char* LINE = strtok_s(line, " \n", &context);
+                LINE++;
+                strncpy_s(LOCATION, sizeof(LOCATION), LINE, 6);
+                LOCATION[6] = '\0';
+                strncpy_s(HALF_BYTES, sizeof(HALF_BYTES), LINE + 6, 2);
+                HALF_BYTES[2] = '\0';
+                SIGN[0] = LINE[8];
+                SIGN[1] = '\0';
+                strncpy_s(SYMBOL, sizeof(SYMBOL), LINE + 9, _TRUNCATE);
+                //printf("LOCATION: '%s'\n", LOCATION);
+                //printf("HALF_BYTES: '%s'\n", HALF_BYTES);
+                //printf("SIGN: '%s'\n", SIGN);
+                //printf("SYMBOL: '%s'\n\n", SYMBOL);
+            }
+            else if (line[0] == 'E')
+            {
+
+                break;
+            }
+        }
+    }
+
+    fclose(files[0]);
+    fclose(files[1]);
+    fclose(files[2]);
+    /*for (int i = 1; i < argc; i++)
+    {
+        fclose(files[i - 1]);
+    }*/
+    fclose(OutputFile);
     return 0;
 }
