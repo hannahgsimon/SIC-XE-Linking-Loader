@@ -98,106 +98,67 @@ typedef struct MemoryBuffer
 MemoryBuffer MEM[100];
 int memCount = 0;
 
-void addMem(unsigned short int address,
-    const unsigned short int* contents1,
-    const unsigned short int* contents2,
-    const unsigned short int* contents3,
-    const unsigned short int* contents4)
+void printMemoryBufferTable(MemoryBuffer MEM[], int memCount)
 {
-    // Set the memory address
-    MEM[memCount].memory_address[0] = address;
-    for (int i = 1; i < 5; i++)
-    {
-        MEM[memCount].memory_address[i] = 0; // Initialize remaining memory addresses to 0
-    }
-
-    // Copy contents into respective arrays
-    if (contents1 != NULL)
-    {
-        memcpy(MEM[memCount].contents1, contents1, sizeof(MEM[memCount].contents1));
-    }
-    else
-    {
-        memset(MEM[memCount].contents1, 0, sizeof(MEM[memCount].contents1)); // Set to 0 if contents1 is NULL
-    }
-
-    if (contents2 != NULL)
-    {
-        memcpy(MEM[memCount].contents2, contents2, sizeof(MEM[memCount].contents2));
-    }
-    else
-    {
-        memset(MEM[memCount].contents2, 0, sizeof(MEM[memCount].contents2));
-    }
-
-    if (contents3 != NULL)
-    {
-        memcpy(MEM[memCount].contents3, contents3, sizeof(MEM[memCount].contents3));
-    }
-    else
-    {
-        memset(MEM[memCount].contents3, 0, sizeof(MEM[memCount].contents3));
-    }
-
-    if (contents4 != NULL)
-    {
-        memcpy(MEM[memCount].contents4, contents4, sizeof(MEM[memCount].contents4));
-    }
-    else
-    {
-        memset(MEM[memCount].contents4, 0, sizeof(MEM[memCount].contents4));
-    }
-
-    memCount++;
-}
-
-void printMemoryTable()
-{
-    if (memCount == 0)
-    {
-        printf("Memory table is empty.\n");
-        return;
-    }
-
-    printf("Memory Table:\n");
-    printf("-------------------------------------------------------------------\n");
-    printf("| Address | Contents1         | Contents2         | Contents3         | Contents4         |\n");
-    printf("-------------------------------------------------------------------\n");
+    printf("Memory Buffer Table:\n");
+    printf("%s\t%s\t%s\t%s\t%s\n", "Memory Address", "Contents1", "Contents2", "Contents3", "Contents4");
 
     for (int i = 0; i < memCount; i++)
     {
-        printf("| %7d | ", MEM[i].memory_address[0]);
+        printf("%X\t\t ", MEM[i].memory_address[0]);
 
-        // Print each contents array in the same row
-        for (int j = 0; j < 9; j++)
+        if (MEM[i].contents1[0] == 0)
         {
-            printf("%2d ", MEM[i].contents1[j]);
+            printf("........");
         }
-        printf("| ");
+        else
+        {
+            printf("%X", MEM[i].contents1[0]);
+        }
+        printf("\t");
 
-        for (int j = 0; j < 9; j++)
+        if (MEM[i].contents2[0] == 0)
         {
-            printf("%2d ", MEM[i].contents2[j]);
+            printf("........");
         }
-        printf("| ");
+        else
+        {
+            printf("%X", MEM[i].contents2[0]);
+        }
+        printf("\t");
 
-        for (int j = 0; j < 9; j++)
+        if (MEM[i].contents3[0] == 0)
         {
-            printf("%2d ", MEM[i].contents3[j]);
+            printf("........");
         }
-        printf("| ");
+        else
+        {
+            printf("%X", MEM[i].contents3[0]);
+        }
+        printf("\t");
 
-        for (int j = 0; j < 9; j++)
+        if (MEM[i].contents4[0] == 0)
         {
-            printf("%2d ", MEM[i].contents4[j]);
+            printf("........");
         }
-        printf("|\n");
+        else
+        {
+            printf("%X", MEM[i].contents4[0]);
+        }
+        printf("\n");
     }
-
-    printf("-------------------------------------------------------------------\n");
 }
 
-
+int getIndex(char* LOCATION)
+{
+    for (int i = 0; i < memCount; i++)
+    {
+        if (MEM[i].memory_address > MEM[0].memory_address + atoi(LOCATION))
+        {
+            return i - 1;
+        }
+    }
+}
 
 //int main(int argc, char* argv[])
 int main()
@@ -269,9 +230,8 @@ int main()
                     SYMBOL = next + 6;
                     next = strtok_s(NULL, " \n", &context);
                 }
-
             }
-            else if (line[0] == 'E')
+            else if (line[0] == 'R')
             {
 
                 break;
@@ -294,8 +254,12 @@ int main()
     FILE* OutputFile = fopen("OutputFile.txt", "w");
     char LOCATION[9]; char HALF_BYTES[3];  char SIGN[2]; char SYMBOL[100];
 
-    addMem(3, 4, 4, 4, 4);
-    printMemoryTable();
+    for (int j = starting_address; j <= symbolTable[symbolCount - 1].address; j += 10)
+    {
+        MEM[memCount].memory_address[0] = j;
+        memCount++;
+    }
+    printMemoryBufferTable(MEM, memCount);
 
     for (int i = 0; i < 3; i++) //i < argc - 1
     {
@@ -324,6 +288,7 @@ int main()
                 //printf("HALF_BYTES: '%s'\n", HALF_BYTES);
                 //printf("SIGN: '%s'\n", SIGN);
                 //printf("SYMBOL: '%s'\n\n", SYMBOL);
+                getIndex(LOCATION);
             }
             else if (line[0] == 'E')
             {
@@ -332,6 +297,8 @@ int main()
             }
         }
     }
+
+
 
     fclose(files[0]);
     fclose(files[1]);
