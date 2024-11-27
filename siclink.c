@@ -39,14 +39,7 @@ void addSymbol(const char* control_section, const char* name, unsigned short int
     }
     strcpy_s(symbolTable[symbolCount].control_section, sizeof(symbolTable[symbolCount].control_section), control_section);
     strcpy_s(symbolTable[symbolCount].name, sizeof(symbolTable[symbolCount].name), name);
-    if (control_section == "")
-    {
-        symbolTable[symbolCount].address = symbolTable[symbolCount - 1].address + address;
-    }
-    else
-    {
-        symbolTable[symbolCount].address = address;
-    }
+    symbolTable[symbolCount].address = address;
     strcpy_s(symbolTable[symbolCount].length, sizeof(symbolTable[symbolCount].length), length);
     symbolCount++;
 }
@@ -190,7 +183,7 @@ int main()
     char line[256];
     char* context = NULL;
     unsigned short int starting_address = 0x4000;
-    unsigned short int prev_starting_address = starting_address;
+    unsigned short int prev_starting_index = 0;
 
 
     for (int i = 0; i < 3; i++) //i < argc - 1
@@ -208,10 +201,8 @@ int main()
                 }
                 else
                 {
-                    unsigned short int length_int = (unsigned short int)strtol(length, NULL, 16);   // Convert length (hex string) to an unsigned short integer
-                    int new_address = prev_starting_address + length_int;
-                    addSymbol(control_section, "", new_address, length);
-                    prev_starting_address = new_address;
+                    addSymbol(control_section, "", symbolTable[prev_starting_index].address + strtol(symbolTable[prev_starting_index].length, NULL, 16), length);
+                    prev_starting_index = symbolCount - 1;
                 }
             }
             else if (line[0] == 'D')
@@ -226,7 +217,7 @@ int main()
                     strncpy_s(address, sizeof(address), next, 6);
                     address[6] = '\0';
                     unsigned short int ADDRESS = (unsigned short int)strtol(address, NULL, 16); // Convert ADDRESS (hex string) to an unsigned short integer
-                    addSymbol("", SYMBOL, ADDRESS, "");
+                    addSymbol("", SYMBOL, ADDRESS + symbolTable[prev_starting_index].address, "");
                     SYMBOL = next + 6;
                     next = strtok_s(NULL, " \n", &context);
                 }
@@ -254,7 +245,7 @@ int main()
     FILE* OutputFile = fopen("OutputFile.txt", "w");
     char LOCATION[9]; char HALF_BYTES[3];  char SIGN[2]; char SYMBOL[100];
 
-    for (int j = starting_address; j <= symbolTable[symbolCount - 1].address; j += 10)
+    for (int j = starting_address; j <= symbolTable[symbolCount - 1].address; j += 16)
     {
         MEM[memCount].memory_address[0] = j;
         memCount++;
