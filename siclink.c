@@ -82,62 +82,39 @@ void printSymbolTable(Symbol symbolTable[], int symbolCount)
 typedef struct MemoryBuffer
 {
     unsigned short int memory_address[5];
-    unsigned short int contents1[9];
-    unsigned short int contents2[9];
-    unsigned short int contents3[9];
-    unsigned short int contents4[9];
+    short int contents[36];
 } MemoryBuffer;
 
-MemoryBuffer MEM[100];
+MemoryBuffer MEM[1024];
 int memCount = 0;
 
-void printMemoryBufferTable(MemoryBuffer MEM[], int memCount)
+void printMemoryBufferTable(MemoryBuffer MEM[], int memCount) 
 {
     printf("Memory Buffer Table:\n");
-    printf("%s\t%s\t%s\t%s\t%s\n", "Memory Address", "Contents1", "Contents2", "Contents3", "Contents4");
+    printf("%-10s %-50s\n", "Address", "Contents (16 bytes)");
 
-    for (int i = 0; i < memCount; i++)
+    for (int i = 0; i < memCount; i++) 
     {
-        printf("%X\t\t ", MEM[i].memory_address[0]);
+        printf("0x%04X    ", MEM[i].memory_address[0]);
 
-        if (MEM[i].contents1[0] == 0)
+        for (int j = 0; j < 16; j++) 
         {
-            printf("........");
-        }
-        else
-        {
-            printf("%X", MEM[i].contents1[0]);
-        }
-        printf("\t");
+            if (MEM[i].contents[j] == -1) 
+            {  // Check for uninitialized memory
+                printf("..");  // Print a dot for uninitialized bytes
+            } 
+            else 
+            {  // Initialized memory, including 0x00
+                printf("%02X", MEM[i].contents[j]);
+            }
 
-        if (MEM[i].contents2[0] == 0)
-        {
-            printf("........");
+            // Add a space after every 4 bytes for readability
+            if ((j + 1) % 4 == 0 && j < 15) 
+            {
+                printf(" ");
+            }
         }
-        else
-        {
-            printf("%X", MEM[i].contents2[0]);
-        }
-        printf("\t");
 
-        if (MEM[i].contents3[0] == 0)
-        {
-            printf("........");
-        }
-        else
-        {
-            printf("%X", MEM[i].contents3[0]);
-        }
-        printf("\t");
-
-        if (MEM[i].contents4[0] == 0)
-        {
-            printf("........");
-        }
-        else
-        {
-            printf("%X", MEM[i].contents4[0]);
-        }
         printf("\n");
     }
 }
@@ -151,7 +128,137 @@ int getIndex(char* LOCATION)
             return i - 1;
         }
     }
+    return memCount - 1; // Return last index if not found
 }
+
+/*
+void processTextRecord(char* LINE, unsigned short int starting_address) 
+{
+    char hexAddress[7];
+    strncpy_s(hexAddress, sizeof(hexAddress), LINE, 6);
+    hexAddress[6] = '\0';
+
+    unsigned int intAddress = (unsigned int)strtol(hexAddress, NULL, 16);
+    unsigned int absoluteAddress = starting_address + intAddress;
+
+    char hexLength[3];
+    strncpy_s(hexLength, sizeof(hexLength), LINE + 6, 2);
+    hexLength[2] = '\0';
+
+    unsigned int intLength = (unsigned int)strtol(hexLength, NULL, 16);
+
+    char hexObjCode[61];
+    strncpy_s(hexObjCode, sizeof(hexObjCode), LINE + 8, strlen(LINE + 8));
+    hexObjCode[sizeof(hexObjCode) - 1] = '\0';
+
+    // Trim whitespace from the end
+    size_t len = strlen(hexObjCode);
+    while (len > 0 && (hexObjCode[len-1] == ' ' || hexObjCode[len-1] == '\n')) 
+    {
+        hexObjCode[--len] = '\0';
+    }
+
+    // Ensure we have enough characters to parse
+    if (strlen(hexObjCode) < intLength * 2) 
+    {
+        printf("Warning: Incomplete T-record. Expected %u bytes, found %zu\n", 
+               intLength, strlen(hexObjCode) / 2);
+        return;
+    }
+
+    for (unsigned int i = 0; i < intLength; i++) 
+    {
+        char byteHex[3];
+        strncpy_s(byteHex, sizeof(byteHex), &hexObjCode[i * 2], 2);
+        byteHex[2] = '\0';
+
+        unsigned char byte = (unsigned char)strtol(byteHex, NULL, 16);
+
+        int memIndex = -1;
+        for (int j = 0; j < memCount; j++)
+        {
+            if (MEM[j].memory_address[0] <= absoluteAddress && 
+                MEM[j].memory_address[0] + 16 > absoluteAddress)
+            {
+                memIndex = j;
+                break;
+            }
+        }
+
+        if (memIndex != -1) 
+        {
+            int byteOffset = absoluteAddress - MEM[memIndex].memory_address[0] + i;
+            if (byteOffset >= 0 && byteOffset < 16) 
+            {
+                MEM[memIndex].contents[byteOffset] = byte;
+            }
+        }
+    }
+}
+*/
+
+void processTextRecord(char* LINE, unsigned short int starting_address) {
+    char hexAddress[7];
+    strncpy_s(hexAddress, sizeof(hexAddress), LINE, 6);
+    hexAddress[6] = '\0';
+
+    unsigned int intAddress = (unsigned int)strtol(hexAddress, NULL, 16);
+    unsigned int absoluteAddress = starting_address + intAddress;
+
+    char hexLength[3];
+    strncpy_s(hexLength, sizeof(hexLength), LINE + 6, 2);
+    hexLength[2] = '\0';
+
+    unsigned int intLength = (unsigned int)strtol(hexLength, NULL, 16);
+
+    char hexObjCode[61];
+    strncpy_s(hexObjCode, sizeof(hexObjCode), LINE + 8, strlen(LINE + 8));
+    hexObjCode[sizeof(hexObjCode) - 1] = '\0';
+
+    // Trim whitespace from the end
+    size_t len = strlen(hexObjCode);
+    while (len > 0 && (hexObjCode[len - 1] == ' ' || hexObjCode[len - 1] == '\n')) 
+    {
+        hexObjCode[--len] = '\0';
+    }
+
+    for (unsigned int i = 0; i < intLength; i++) 
+    {
+        char byteHex[3];
+        strncpy_s(byteHex, sizeof(byteHex), &hexObjCode[i * 2], 2);
+        byteHex[2] = '\0';
+
+        unsigned char byte = (unsigned char)strtol(byteHex, NULL, 16);
+
+        // Determine which memory buffer to use
+        int memIndex = -1;
+        for (int j = 0; j < memCount; j++) 
+        {
+            if (MEM[j].memory_address[0] <= absoluteAddress && MEM[j].memory_address[0] + 16 > absoluteAddress) 
+            {
+                memIndex = j;
+                break;
+            }
+        }
+        if (memIndex != -1) 
+        {
+            int byteOffset = (absoluteAddress - MEM[memIndex].memory_address[0]) + i;
+
+            // Handle overflow to the next buffer
+            while (byteOffset >= 16) 
+            {
+                memIndex++;
+                byteOffset -= 16;
+            }
+
+            if (byteOffset >= 0 && byteOffset < 16) 
+            {
+                MEM[memIndex].contents[byteOffset] = byte;
+            }
+        }
+    }
+}
+
 
 //int main(int argc, char* argv[])
 int main()
@@ -248,10 +355,12 @@ int main()
     for (int j = starting_address; j <= symbolTable[symbolCount - 1].address; j += 16)
     {
         MEM[memCount].memory_address[0] = j;
+        for (int k = 0; k < 16; k++) 
+        {
+            MEM[memCount].contents[k] = -1;
+        }
         memCount++;
     }
-    printMemoryBufferTable(MEM, memCount);
-
     for (int i = 0; i < 3; i++) //i < argc - 1
     {
         while (fgets(line, sizeof(line), files[i]))
@@ -262,7 +371,10 @@ int main()
             }
             else if (line[0] == 'T')
             {
+                char* LINE = strtok_s(line, " \n", &context);
+                LINE++;
 
+                processTextRecord(LINE, starting_address);                
             }
             else if (line[0] == 'M')
             {
@@ -289,6 +401,7 @@ int main()
         }
     }
 
+    printMemoryBufferTable(MEM, memCount);
 
 
     fclose(files[0]);
