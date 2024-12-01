@@ -44,7 +44,7 @@ void addSymbol(const char* control_section, const char* name, unsigned short int
     symbolCount++;
 }
 
-int getSymbolAddress(char* name)
+/*int getSymbolAddress(char* name)
 {
     if (strlen(name) >= 2 && name[strlen(name) - 2] == ',' && name[strlen(name) - 1] == 'X')
     {
@@ -61,6 +61,39 @@ int getSymbolAddress(char* name)
             return symbolTable[i].address; // Return the address if found
         }
     }
+    return NULL;
+}*/
+
+int getSymbolAddress(char* name)
+{
+    // Remove indexing or addressing modes
+    if (strlen(name) >= 2 && name[strlen(name) - 2] == ',' && name[strlen(name) - 1] == 'X')
+    {
+        name[strlen(name) - 2] = '\0';
+    }
+    else if (name[0] == '@' || name[0] == '#')
+    {
+        memmove(name, name + 1, strlen(name));
+    }
+
+    // Check for control section names 
+    for (int i = 0; i < symbolCount; i++)
+    {
+        if (strcmp(symbolTable[i].control_section, name) == 0)
+        {
+            return symbolTable[i].address;
+        }
+    }
+
+    // Check for symbol names
+    for (int i = 0; i < symbolCount; i++)
+    {
+        if (strcmp(symbolTable[i].name, name) == 0)
+        {
+            return symbolTable[i].address;
+        }
+    }
+
     return NULL;
 }
 
@@ -91,7 +124,7 @@ int memCount = 0;
 void printMemoryBufferTable(MemoryBuffer MEM[], int memCount) 
 {
     printf("Memory Buffer Table:\n");
-    printf("%-10s %-50s\n", "Address", "Contents (16 bytes)");
+    printf("%-10s%-50s\n", "Address", "Contents");
 
     for (int i = 0; i < memCount; i++) 
     {
@@ -131,79 +164,35 @@ int getIndex(char* LOCATION)
     return memCount - 1; // Return last index if not found
 }
 
-/*
-void processTextRecord(char* LINE, unsigned short int starting_address) 
+void processTextRecord(char* LINE, unsigned short int starting_address, int file_index) 
 {
-    char hexAddress[7];
-    strncpy_s(hexAddress, sizeof(hexAddress), LINE, 6);
-    hexAddress[6] = '\0';
-
-    unsigned int intAddress = (unsigned int)strtol(hexAddress, NULL, 16);
-    unsigned int absoluteAddress = starting_address + intAddress;
-
-    char hexLength[3];
-    strncpy_s(hexLength, sizeof(hexLength), LINE + 6, 2);
-    hexLength[2] = '\0';
-
-    unsigned int intLength = (unsigned int)strtol(hexLength, NULL, 16);
-
-    char hexObjCode[61];
-    strncpy_s(hexObjCode, sizeof(hexObjCode), LINE + 8, strlen(LINE + 8));
-    hexObjCode[sizeof(hexObjCode) - 1] = '\0';
-
-    // Trim whitespace from the end
-    size_t len = strlen(hexObjCode);
-    while (len > 0 && (hexObjCode[len-1] == ' ' || hexObjCode[len-1] == '\n')) 
+    // Adds previous control section lengths
+    unsigned int base_adjustment = 0;
+    if (file_index > 0)
     {
-        hexObjCode[--len] = '\0';
-    }
+        int found = 0;
 
-    // Ensure we have enough characters to parse
-    if (strlen(hexObjCode) < intLength * 2) 
-    {
-        printf("Warning: Incomplete T-record. Expected %u bytes, found %zu\n", 
-               intLength, strlen(hexObjCode) / 2);
-        return;
-    }
-
-    for (unsigned int i = 0; i < intLength; i++) 
-    {
-        char byteHex[3];
-        strncpy_s(byteHex, sizeof(byteHex), &hexObjCode[i * 2], 2);
-        byteHex[2] = '\0';
-
-        unsigned char byte = (unsigned char)strtol(byteHex, NULL, 16);
-
-        int memIndex = -1;
-        for (int j = 0; j < memCount; j++)
+        for (int j = 0; j < symbolCount; j++)
         {
-            if (MEM[j].memory_address[0] <= absoluteAddress && 
-                MEM[j].memory_address[0] + 16 > absoluteAddress)
-            {
-                memIndex = j;
+            if (strlen(symbolTable[j].control_section) == 0)
+                continue;
+
+            unsigned int length = (unsigned int)strtol(symbolTable[j].length, NULL, 16);
+            base_adjustment += length;
+
+            found++;
+
+            if (found == file_index)
                 break;
-            }
-        }
-
-        if (memIndex != -1) 
-        {
-            int byteOffset = absoluteAddress - MEM[memIndex].memory_address[0] + i;
-            if (byteOffset >= 0 && byteOffset < 16) 
-            {
-                MEM[memIndex].contents[byteOffset] = byte;
-            }
         }
     }
-}
-*/
 
-void processTextRecord(char* LINE, unsigned short int starting_address) {
     char hexAddress[7];
     strncpy_s(hexAddress, sizeof(hexAddress), LINE, 6);
     hexAddress[6] = '\0';
 
     unsigned int intAddress = (unsigned int)strtol(hexAddress, NULL, 16);
-    unsigned int absoluteAddress = starting_address + intAddress;
+    unsigned int absoluteAddress = starting_address + base_adjustment + intAddress;
 
     char hexLength[3];
     strncpy_s(hexLength, sizeof(hexLength), LINE + 6, 2);
@@ -215,7 +204,6 @@ void processTextRecord(char* LINE, unsigned short int starting_address) {
     strncpy_s(hexObjCode, sizeof(hexObjCode), LINE + 8, strlen(LINE + 8));
     hexObjCode[sizeof(hexObjCode) - 1] = '\0';
 
-    // Trim whitespace from the end
     size_t len = strlen(hexObjCode);
     while (len > 0 && (hexObjCode[len - 1] == ' ' || hexObjCode[len - 1] == '\n')) 
     {
@@ -240,6 +228,7 @@ void processTextRecord(char* LINE, unsigned short int starting_address) {
                 break;
             }
         }
+
         if (memIndex != -1) 
         {
             int byteOffset = (absoluteAddress - MEM[memIndex].memory_address[0]) + i;
@@ -258,6 +247,48 @@ void processTextRecord(char* LINE, unsigned short int starting_address) {
         }
     }
 }
+
+void processModificationRecord(char* LINE, unsigned short int starting_address) 
+{
+    // Parse the modification record
+    char LOCATION[7];
+    strncpy_s(LOCATION, sizeof(LOCATION), LINE, 6);
+    LOCATION[6] = '\0';
+
+    char HALF_BYTES[3];
+    strncpy_s(HALF_BYTES, sizeof(HALF_BYTES), LINE + 6, 2);
+    HALF_BYTES[2] = '\0';
+
+    char SIGN[2];
+    SIGN[0] = LINE[8];
+    SIGN[1] = '\0';
+
+    char SYMBOL[100];
+    strncpy_s(SYMBOL, sizeof(SYMBOL), LINE + 9, _TRUNCATE);
+
+    // Convert location to absolute address
+    unsigned int address = (unsigned int)strtol(LOCATION, NULL, 16) + starting_address;
+    unsigned int length = (unsigned int)strtol(HALF_BYTES, NULL, 16);
+
+    // Get symbol address
+    int symbolAddress = getSymbolAddress(SYMBOL);
+
+    // Find the correct memory buffer
+    int memIndex = -1;
+    int byteOffset = -1;
+    for (int i = 0; i < memCount; i++) 
+    {
+        if (MEM[i].memory_address[0] <= address && MEM[i].memory_address[0] + 16 > address) 
+        {
+            memIndex = i;
+            byteOffset = address - MEM[i].memory_address[0];
+            break;
+        }
+    }
+
+
+}
+
 
 
 //int main(int argc, char* argv[])
@@ -292,7 +323,7 @@ int main()
     unsigned short int starting_address = 0x4000;
     unsigned short int prev_starting_index = 0;
 
-
+    // Pass 1
     for (int i = 0; i < 3; i++) //i < argc - 1
     {
         while (fgets(line, sizeof(line), files[i]))
@@ -344,6 +375,8 @@ int main()
     {
         fclose(files[i - 1]);
     }*/
+
+    // Pass 2
     fopen_s(&files[0], "PROGA.txt", "r");
     fopen_s(&files[1], "PROGB.txt", "r");
     fopen_s(&files[2], "PROGC.txt", "r");
@@ -352,7 +385,7 @@ int main()
     FILE* OutputFile = fopen("OutputFile.txt", "w");
     char LOCATION[9]; char HALF_BYTES[3];  char SIGN[2]; char SYMBOL[100];
 
-    for (int j = starting_address; j <= symbolTable[symbolCount - 1].address; j += 16)
+    for (int j = starting_address; j <= symbolTable[symbolCount - 1].address + 16; j += 16)
     {
         MEM[memCount].memory_address[0] = j;
         for (int k = 0; k < 16; k++) 
@@ -361,6 +394,7 @@ int main()
         }
         memCount++;
     }
+    
     for (int i = 0; i < 3; i++) //i < argc - 1
     {
         while (fgets(line, sizeof(line), files[i]))
@@ -374,24 +408,14 @@ int main()
                 char* LINE = strtok_s(line, " \n", &context);
                 LINE++;
 
-                processTextRecord(LINE, starting_address);                
+                processTextRecord(LINE, starting_address, i);                
             }
             else if (line[0] == 'M')
             {
                 char* LINE = strtok_s(line, " \n", &context);
                 LINE++;
-                strncpy_s(LOCATION, sizeof(LOCATION), LINE, 6);
-                LOCATION[6] = '\0';
-                strncpy_s(HALF_BYTES, sizeof(HALF_BYTES), LINE + 6, 2);
-                HALF_BYTES[2] = '\0';
-                SIGN[0] = LINE[8];
-                SIGN[1] = '\0';
-                strncpy_s(SYMBOL, sizeof(SYMBOL), LINE + 9, _TRUNCATE);
-                //printf("LOCATION: '%s'\n", LOCATION);
-                //printf("HALF_BYTES: '%s'\n", HALF_BYTES);
-                //printf("SIGN: '%s'\n", SIGN);
-                //printf("SYMBOL: '%s'\n\n", SYMBOL);
-                getIndex(LOCATION);
+
+                processModificationRecord(LINE, starting_address);
             }
             else if (line[0] == 'E')
             {
@@ -399,10 +423,8 @@ int main()
                 break;
             }
         }
+        printMemoryBufferTable(MEM, memCount);
     }
-
-    printMemoryBufferTable(MEM, memCount);
-
 
     fclose(files[0]);
     fclose(files[1]);
