@@ -44,26 +44,6 @@ void addSymbol(const char* control_section, const char* name, unsigned short int
     symbolCount++;
 }
 
-/*int getSymbolAddress(char* name)
-{
-    if (strlen(name) >= 2 && name[strlen(name) - 2] == ',' && name[strlen(name) - 1] == 'X')
-    {
-        name[strlen(name) - 2] = '\0';
-    }
-    else if (name[0] == '@' || name[0] == '#')
-    {
-        memmove(name, name + 1, strlen(name));
-    }
-    for (int i = 0; i < symbolCount; i++)
-    {
-        if (strcmp(symbolTable[i].name, name) == 0)
-        {
-            return symbolTable[i].address; // Return the address if found
-        }
-    }
-    return NULL;
-}*/
-
 int getSymbolAddress(char* name)
 {
     // Remove indexing or addressing modes
@@ -133,15 +113,14 @@ void printMemoryBufferTable(MemoryBuffer MEM[], int memCount)
         for (int j = 0; j < 16; j++) 
         {
             if (MEM[i].contents[j] == -1) 
-            {  // Check for uninitialized memory
-                printf("..");  // Print a dot for uninitialized bytes
+            {
+                printf("..");
             } 
             else 
-            {  // Initialized memory, including 0x00
+            {
                 printf("%02X", MEM[i].contents[j]);
             }
 
-            // Add a space after every 4 bytes for readability
             if ((j + 1) % 4 == 0 && j < 15) 
             {
                 printf(" ");
@@ -285,6 +264,9 @@ void processModificationRecord(char* LINE, unsigned short int starting_address)
             break;
         }
     }
+
+
+
 
 
 }
