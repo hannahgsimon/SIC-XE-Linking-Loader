@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <ctype.h>
 
 typedef struct Symbol
 {
@@ -9,6 +10,7 @@ typedef struct Symbol
     char name[7]; // 6 + 1 for the null terminator
     unsigned short int address;
     char length[13];
+    char num[3];
 } Symbol;
 
 Symbol ESTAB[100];
@@ -46,19 +48,9 @@ void addSymbol(const char* control_section, const char* name, unsigned short int
 
 int getSymbolAddress(char* name)
 {
-    // Check for control section names 
     for (int i = 0; i < symbolCount; i++)
     {
-        if (strcmp(ESTAB[i].control_section, name) == 0)
-        {
-            return ESTAB[i].address;
-        }
-    }
-
-    // Check for symbol names
-    for (int i = 0; i < symbolCount; i++)
-    {
-        if (strcmp(ESTAB[i].name, name) == 0)
+        if (strcmp(ESTAB[i].name, name) == 0 || strcmp(ESTAB[i].control_section, name) == 0)
         {
             return ESTAB[i].address;
         }
@@ -67,18 +59,60 @@ int getSymbolAddress(char* name)
     return -1;
 }
 
-void printSymbolTable(FILE* OutputFile, Symbol ESTAB[], int symbolCount)
+int getSymbolAddressFromR(char* number)
+{
+    for (int i = 0; i < symbolCount; i++)
+    {
+        if (strcmp(ESTAB[i].num, number) == 0)
+        {
+            return ESTAB[i].address;
+        }
+    }
+
+    return -1;
+}
+
+int getSymbolIndex(char* name)
+{
+    for (int i = 0; i < symbolCount; i++)
+    {
+        if (strcmp(ESTAB[i].name, name) == 0 || strcmp(ESTAB[i].control_section, name) == 0 || strcmp(ESTAB[i].num, name) == 0)
+        {
+            return i;
+        }
+    }
+    return -1;
+}
+
+void printSymbolTable(FILE* OutputFile, Symbol ESTAB[], int symbolCount, int RRecord)
 {
     fprintf(OutputFile, "Symbol Table:\n");
-    fprintf(OutputFile, "%-20s %-6s %-10s %-6s\n", "Control Section", "Name", "Address", "Length");
+    fprintf(OutputFile, "%-20s %-6s ", "Control Section", "Name");
+    if (RRecord)
+    {
+        fprintf(OutputFile, "%-10s ", "Number");
+    }
+    fprintf(OutputFile, "%-10s %-6s\n", "Address", "Length");
 
     for (int i = 0; i < symbolCount; i++)
     {
-        fprintf(OutputFile, "%-20s %-6s 0x%-8X %-6s\n",
-            ESTAB[i].control_section,
-            ESTAB[i].name,
-            ESTAB[i].address,
-            ESTAB[i].length);
+        if (RRecord)
+        {
+            fprintf(OutputFile, "%-20s %-6s %-10s 0x%-8X %-6s\n",
+                ESTAB[i].control_section,
+                ESTAB[i].name,
+                ESTAB[i].num,
+                ESTAB[i].address,
+                ESTAB[i].length);
+        }
+        else
+        {
+            fprintf(OutputFile, "%-20s %-6s 0x%-8X %-6s\n",
+                ESTAB[i].control_section,
+                ESTAB[i].name,
+                ESTAB[i].address,
+                ESTAB[i].length);
+        }
     }
 }
 
@@ -118,18 +152,6 @@ void printMemoryBufferTable(FILE* OutputFile, MemoryBuffer MEM[], int memCount)
         }
         fprintf(OutputFile, "\n");
     }
-}
-
-int getIndex(char* LOCATION)
-{
-    for (int i = 0; i < memCount; i++)
-    {
-        if (MEM[i].memory_address > MEM[0].memory_address + atoi(LOCATION))
-        {
-            return i - 1;
-        }
-    }
-    return memCount - 1; // Return last index if not found
 }
 
 void processTextRecord(char* LINE, unsigned short int starting_address, int file_index)
@@ -216,7 +238,7 @@ void processTextRecord(char* LINE, unsigned short int starting_address, int file
     }
 }
 
-void processModificationRecord(char* LINE, unsigned short int starting_address, int file_index)
+void processModificationRecord(char* LINE, unsigned short int starting_address, int file_index, int RRecord)
 {
     // Adds previous control section lengths
     unsigned int base_adjustment = 0;
@@ -260,13 +282,21 @@ void processModificationRecord(char* LINE, unsigned short int starting_address, 
     unsigned int length = (unsigned int)strtol(HALF_BYTES, NULL, 16);
 
     // Get symbol address
-    int symbolAddress = getSymbolAddress(SYMBOL);
+    int symbolAddress;
+    if (!RRecord)
+    {
+        symbolAddress = getSymbolAddress(SYMBOL);
+    }
+    else
+    {
+        symbolAddress = getSymbolAddressFromR(SYMBOL);
+    }
     if (symbolAddress == -1)
     {
         printf("Error: Pass 2: Undefined symbol '%s'\n", SYMBOL);
         exit(EXIT_FAILURE);
     }
-
+    
     // Find the correct memory buffer
     int memIndex = -1;
     int byteOffset = -1;
@@ -410,7 +440,6 @@ int main()
             }
             else if (line[0] == 'R')
             {
-
                 break;
             }
         }
@@ -430,8 +459,8 @@ int main()
     fopen_s(&files[2], "PROGC.txt", "r");
 
     FILE* OutputFile = fopen("OutputFile.txt", "w");
-    printSymbolTable(OutputFile, ESTAB, symbolCount);
     char LOCATION[9]; char HALF_BYTES[3];  char SIGN[2]; char SYMBOL[100];
+    int RRecord = 0; int j = 0;
 
     for (int j = starting_address; j <= ESTAB[symbolCount - 1].address + 16; j += 16)
     {
@@ -442,20 +471,53 @@ int main()
         }
         memCount++;
     }
-
     for (int i = 0; i < 3; i++) //i < argc - 1
     {
         while (fgets(line, sizeof(line), files[i]))
         {
             if (line[0] == 'H')
             {
-
+                strcpy_s(ESTAB[j].num, sizeof(ESTAB[j].num), "");
+                char* control_section = strtok_s(line, " \n", &context);
+                control_section++;
+                j = getSymbolIndex(control_section);
+            }
+            else if (line[0] == 'R')
+            {
+                char* LINE = strtok_s(line, " \n", &context);
+                LINE++;
+                if (!isdigit(LINE[0]))
+                {
+                    continue;
+                }
+                RRecord = 1;
+                strcpy_s(ESTAB[j].num, sizeof(ESTAB[j].num), "01");
+                while (LINE != NULL)
+                {
+                    char NUMBER[10] = { 0 };
+                    char SYMBOL[7] = { 0 };
+                    int i = 0;
+                    while (LINE[i] != '\0' && isdigit(LINE[i]))
+                    {
+                        NUMBER[i] = LINE[i];
+                        i++;
+                    }
+                    NUMBER[i] = '\0';
+                    strcpy_s(SYMBOL, sizeof(SYMBOL), LINE + i);
+                    i = getSymbolIndex(NUMBER);
+                    if (i != -1)
+                    {
+                        strcpy_s(ESTAB[i].num, sizeof(ESTAB[i].num), "");
+                    }
+                    i = getSymbolIndex(SYMBOL);
+                    strcpy_s(ESTAB[i].num, sizeof(ESTAB[i].num), NUMBER);
+                    LINE = strtok_s(NULL, " \n", &context);
+                }
             }
             else if (line[0] == 'T')
             {
                 char* LINE = strtok_s(line, " \n", &context);
                 LINE++;
-
                 processTextRecord(LINE, starting_address, i);
             }
             else if (line[0] == 'M')
@@ -463,7 +525,7 @@ int main()
                 char* LINE = strtok_s(line, " \n", &context);
                 LINE++;
 
-                processModificationRecord(LINE, starting_address, i);
+                processModificationRecord(LINE, starting_address, i, RRecord);
             }
             else if (line[0] == 'E')
             {
@@ -472,7 +534,7 @@ int main()
             }
         }
     }
-
+    printSymbolTable(OutputFile, ESTAB, symbolCount, RRecord);
     printMemoryBufferTable(OutputFile, MEM, memCount);
 
     fclose(files[0]);
