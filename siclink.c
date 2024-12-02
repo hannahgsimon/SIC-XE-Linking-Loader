@@ -11,7 +11,7 @@ typedef struct Symbol
     char length[13];
 } Symbol;
 
-Symbol symbolTable[100];
+Symbol ESTAB[100];
 int symbolCount = 0;
 
 int isDuplicateSymbol(const char* label)
@@ -22,7 +22,7 @@ int isDuplicateSymbol(const char* label)
     }
     for (int i = 0; i < symbolCount; i++)
     {
-        if (strcmp(symbolTable[i].name, label) == 0)
+        if (strcmp(ESTAB[i].name, label) == 0)
         {
             return 1; // Duplicate found
         }
@@ -37,97 +37,86 @@ void addSymbol(const char* control_section, const char* name, unsigned short int
         printf("Error: Pass 1: Duplicate symbol '%s'\n", name);
         exit(EXIT_FAILURE);
     }
-    strcpy_s(symbolTable[symbolCount].control_section, sizeof(symbolTable[symbolCount].control_section), control_section);
-    strcpy_s(symbolTable[symbolCount].name, sizeof(symbolTable[symbolCount].name), name);
-    symbolTable[symbolCount].address = address;
-    strcpy_s(symbolTable[symbolCount].length, sizeof(symbolTable[symbolCount].length), length);
+    strcpy_s(ESTAB[symbolCount].control_section, sizeof(ESTAB[symbolCount].control_section), control_section);
+    strcpy_s(ESTAB[symbolCount].name, sizeof(ESTAB[symbolCount].name), name);
+    ESTAB[symbolCount].address = address;
+    strcpy_s(ESTAB[symbolCount].length, sizeof(ESTAB[symbolCount].length), length);
     symbolCount++;
 }
 
 int getSymbolAddress(char* name)
 {
-    // Remove indexing or addressing modes
-    if (strlen(name) >= 2 && name[strlen(name) - 2] == ',' && name[strlen(name) - 1] == 'X')
-    {
-        name[strlen(name) - 2] = '\0';
-    }
-    else if (name[0] == '@' || name[0] == '#')
-    {
-        memmove(name, name + 1, strlen(name));
-    }
-
     // Check for control section names 
     for (int i = 0; i < symbolCount; i++)
     {
-        if (strcmp(symbolTable[i].control_section, name) == 0)
+        if (strcmp(ESTAB[i].control_section, name) == 0)
         {
-            return symbolTable[i].address;
+            return ESTAB[i].address;
         }
     }
 
     // Check for symbol names
     for (int i = 0; i < symbolCount; i++)
     {
-        if (strcmp(symbolTable[i].name, name) == 0)
+        if (strcmp(ESTAB[i].name, name) == 0)
         {
-            return symbolTable[i].address;
+            return ESTAB[i].address;
         }
     }
 
-    return NULL;
+    return -1;
 }
 
-void printSymbolTable(Symbol symbolTable[], int symbolCount)
+void printSymbolTable(FILE* OutputFile, Symbol ESTAB[], int symbolCount)
 {
-    printf("Symbol Table:\n");
-    printf("%-20s %-6s %-10s %-6s\n", "Control Section", "Name", "Address", "Length");
+    fprintf(OutputFile, "Symbol Table:\n");
+    fprintf(OutputFile, "%-20s %-6s %-10s %-6s\n", "Control Section", "Name", "Address", "Length");
 
     for (int i = 0; i < symbolCount; i++)
     {
-        printf("%-20s %-6s 0x%-8X %-6s\n",
-            symbolTable[i].control_section,
-            symbolTable[i].name,
-            symbolTable[i].address,
-            symbolTable[i].length);
+        fprintf(OutputFile, "%-20s %-6s 0x%-8X %-6s\n",
+            ESTAB[i].control_section,
+            ESTAB[i].name,
+            ESTAB[i].address,
+            ESTAB[i].length);
     }
 }
 
 typedef struct MemoryBuffer
 {
     unsigned short int memory_address[5];
-    short int contents[36];
+    short int contents[39];
 } MemoryBuffer;
 
 MemoryBuffer MEM[1024];
 int memCount = 0;
 
-void printMemoryBufferTable(MemoryBuffer MEM[], int memCount) 
+void printMemoryBufferTable(FILE* OutputFile, MemoryBuffer MEM[], int memCount)
 {
-    printf("Memory Buffer Table:\n");
-    printf("%-10s%-50s\n", "Address", "Contents");
+    fprintf(OutputFile, "Memory Buffer Table:\n");
+    fprintf(OutputFile, "%-10s%-50s\n", "Address", "Contents");
 
-    for (int i = 0; i < memCount; i++) 
+    for (int i = 0; i < memCount; i++)
     {
-        printf("0x%04X    ", MEM[i].memory_address[0]);
+        fprintf(OutputFile, "0x%04X    ", MEM[i].memory_address[0]);
 
-        for (int j = 0; j < 16; j++) 
+        for (int j = 0; j < 16; j++)
         {
-            if (MEM[i].contents[j] == -1) 
+            if (MEM[i].contents[j] == -1)
             {
-                printf("..");
-            } 
-            else 
+                fprintf(OutputFile, "..");
+            }
+            else
             {
-                printf("%02X", MEM[i].contents[j]);
+                fprintf(OutputFile, "%02X", MEM[i].contents[j]);
             }
 
-            if ((j + 1) % 4 == 0 && j < 15) 
+            if ((j + 1) % 4 == 0 && j < 15)
             {
-                printf(" ");
+                fprintf(OutputFile, "  ");
             }
         }
-
-        printf("\n");
+        fprintf(OutputFile, "\n");
     }
 }
 
@@ -143,7 +132,7 @@ int getIndex(char* LOCATION)
     return memCount - 1; // Return last index if not found
 }
 
-void processTextRecord(char* LINE, unsigned short int starting_address, int file_index) 
+void processTextRecord(char* LINE, unsigned short int starting_address, int file_index)
 {
     // Adds previous control section lengths
     unsigned int base_adjustment = 0;
@@ -153,10 +142,10 @@ void processTextRecord(char* LINE, unsigned short int starting_address, int file
 
         for (int j = 0; j < symbolCount; j++)
         {
-            if (strlen(symbolTable[j].control_section) == 0)
+            if (strlen(ESTAB[j].control_section) == 0)
                 continue;
 
-            unsigned int length = (unsigned int)strtol(symbolTable[j].length, NULL, 16);
+            unsigned int length = (unsigned int)strtol(ESTAB[j].length, NULL, 16);
             base_adjustment += length;
 
             found++;
@@ -184,12 +173,12 @@ void processTextRecord(char* LINE, unsigned short int starting_address, int file
     hexObjCode[sizeof(hexObjCode) - 1] = '\0';
 
     size_t len = strlen(hexObjCode);
-    while (len > 0 && (hexObjCode[len - 1] == ' ' || hexObjCode[len - 1] == '\n')) 
+    while (len > 0 && (hexObjCode[len - 1] == ' ' || hexObjCode[len - 1] == '\n'))
     {
         hexObjCode[--len] = '\0';
     }
 
-    for (unsigned int i = 0; i < intLength; i++) 
+    for (unsigned int i = 0; i < intLength; i++)
     {
         char byteHex[3];
         strncpy_s(byteHex, sizeof(byteHex), &hexObjCode[i * 2], 2);
@@ -199,27 +188,27 @@ void processTextRecord(char* LINE, unsigned short int starting_address, int file
 
         // Determine which memory buffer to use
         int memIndex = -1;
-        for (int j = 0; j < memCount; j++) 
+        for (int j = 0; j < memCount; j++)
         {
-            if (MEM[j].memory_address[0] <= absoluteAddress && MEM[j].memory_address[0] + 16 > absoluteAddress) 
+            if (MEM[j].memory_address[0] <= absoluteAddress && MEM[j].memory_address[0] + 16 > absoluteAddress)
             {
                 memIndex = j;
                 break;
             }
         }
 
-        if (memIndex != -1) 
+        if (memIndex != -1)
         {
             int byteOffset = (absoluteAddress - MEM[memIndex].memory_address[0]) + i;
 
             // Handle overflow to the next buffer
-            while (byteOffset >= 16) 
+            while (byteOffset >= 16)
             {
                 memIndex++;
                 byteOffset -= 16;
             }
 
-            if (byteOffset >= 0 && byteOffset < 16) 
+            if (byteOffset >= 0 && byteOffset < 16)
             {
                 MEM[memIndex].contents[byteOffset] = byte;
             }
@@ -227,7 +216,7 @@ void processTextRecord(char* LINE, unsigned short int starting_address, int file
     }
 }
 
-void processModificationRecord(char* LINE, unsigned short int starting_address, int file_index) 
+void processModificationRecord(char* LINE, unsigned short int starting_address, int file_index)
 {
     // Adds previous control section lengths
     unsigned int base_adjustment = 0;
@@ -237,10 +226,10 @@ void processModificationRecord(char* LINE, unsigned short int starting_address, 
 
         for (int j = 0; j < symbolCount; j++)
         {
-            if (strlen(symbolTable[j].control_section) == 0)
+            if (strlen(ESTAB[j].control_section) == 0)
                 continue;
 
-            unsigned int length = (unsigned int)strtol(symbolTable[j].length, NULL, 16);
+            unsigned int length = (unsigned int)strtol(ESTAB[j].length, NULL, 16);
             base_adjustment += length;
 
             found++;
@@ -272,32 +261,83 @@ void processModificationRecord(char* LINE, unsigned short int starting_address, 
 
     // Get symbol address
     int symbolAddress = getSymbolAddress(SYMBOL);
+    if (symbolAddress == -1)
+    {
+        printf("Error: Pass 2: Undefined symbol '%s'\n", SYMBOL);
+        exit(EXIT_FAILURE);
+    }
 
     // Find the correct memory buffer
     int memIndex = -1;
     int byteOffset = -1;
-    for (int i = 0; i < memCount; i++) 
+    int byteOffsetCopy = -1;
+    for (int i = 0; i < memCount; i++)
     {
-        if (MEM[i].memory_address[0] <= address && MEM[i].memory_address[0] + 16 > address) 
+        if (MEM[i].memory_address[0] <= address && MEM[i].memory_address[0] + 16 > address)
         {
             memIndex = i;
             byteOffset = address - MEM[i].memory_address[0];
+            byteOffsetCopy = byteOffset;
             break;
         }
     }
 
-    int j = 0; 
-    for (int i  = (length / 2) + (length % 2); i > 0; i--)
+    int j = 0; char concatenatedHex[9]; concatenatedHex[0] = '\0'; char hexByte[3]; int newLine = 0;
+    for (int i = (length / 2) + (length % 2); i > 0; i--)
     {
-            int T = MEM[memIndex].contents[byteOffset + j]; // if byteOffset + j > 15, j = 0 and memIndex++;
-            j++;
-            printf("%X\n", T);
+        if (byteOffset + j > 15)
+        {
+            memIndex++;
+            byteOffset = 0;
+            j = 0;
+            newLine = 1;
+        }
+        int T = MEM[memIndex].contents[byteOffset + j]; // if byteOffset + j > 15, j = 0 and memIndex++;
+        j++;
+        sprintf_s(hexByte, sizeof(hexByte), "%02X", T);
+        strcat_s(concatenatedHex, sizeof(concatenatedHex), hexByte);
     }
 
-    printf("\n");
+    int result = 0;
+    if (strcmp(SIGN, "+") == 0)
+    {
+        result = (unsigned int)strtol(concatenatedHex, NULL, 16) + symbolAddress;
+    }
+    else if (strcmp(SIGN, "-") == 0)
+    {
+        result = (unsigned int)strtol(concatenatedHex, NULL, 16) - symbolAddress;
+    }
+
+    sprintf_s(concatenatedHex, sizeof(concatenatedHex), "%06X", result);
+    j = 0; int k = 0;
+
+    if (newLine == 1)
+    {
+        memIndex--;
+        byteOffset = byteOffsetCopy;
+    }
+    if (strlen(concatenatedHex) >= 7)
+    {
+        k = strlen(concatenatedHex) - 6;
+    }
+
+    for (int i = (length / 2) + (length % 2); i > 0; i--)
+    {
+        if (byteOffset + j > 15)
+        {
+            memIndex++;
+            byteOffset = 0;
+            j = 0;
+        }
+        char hexPair[3];
+        strncpy_s(hexPair, sizeof(hexPair), concatenatedHex + k, 2); 
+        hexPair[2] = '\0';
+        unsigned char byte = (unsigned char)strtol(hexPair, NULL, 16);
+        MEM[memIndex].contents[byteOffset + j] = byte;
+        j++;
+        k += 2;
+    }
 }
-
-
 
 //int main(int argc, char* argv[])
 int main()
@@ -347,7 +387,7 @@ int main()
                 }
                 else
                 {
-                    addSymbol(control_section, "", symbolTable[prev_starting_index].address + strtol(symbolTable[prev_starting_index].length, NULL, 16), length);
+                    addSymbol(control_section, "", ESTAB[prev_starting_index].address + strtol(ESTAB[prev_starting_index].length, NULL, 16), length);
                     prev_starting_index = symbolCount - 1;
                 }
             }
@@ -363,7 +403,7 @@ int main()
                     strncpy_s(address, sizeof(address), next, 6);
                     address[6] = '\0';
                     unsigned short int ADDRESS = (unsigned short int)strtol(address, NULL, 16); // Convert ADDRESS (hex string) to an unsigned short integer
-                    addSymbol("", SYMBOL, ADDRESS + symbolTable[prev_starting_index].address, "");
+                    addSymbol("", SYMBOL, ADDRESS + ESTAB[prev_starting_index].address, "");
                     SYMBOL = next + 6;
                     next = strtok_s(NULL, " \n", &context);
                 }
@@ -389,20 +429,20 @@ int main()
     fopen_s(&files[1], "PROGB.txt", "r");
     fopen_s(&files[2], "PROGC.txt", "r");
 
-    printSymbolTable(symbolTable, symbolCount);
     FILE* OutputFile = fopen("OutputFile.txt", "w");
+    printSymbolTable(OutputFile, ESTAB, symbolCount);
     char LOCATION[9]; char HALF_BYTES[3];  char SIGN[2]; char SYMBOL[100];
 
-    for (int j = starting_address; j <= symbolTable[symbolCount - 1].address + 16; j += 16)
+    for (int j = starting_address; j <= ESTAB[symbolCount - 1].address + 16; j += 16)
     {
         MEM[memCount].memory_address[0] = j;
-        for (int k = 0; k < 16; k++) 
+        for (int k = 0; k < 16; k++)
         {
             MEM[memCount].contents[k] = -1;
         }
         memCount++;
     }
-    
+
     for (int i = 0; i < 3; i++) //i < argc - 1
     {
         while (fgets(line, sizeof(line), files[i]))
@@ -416,7 +456,7 @@ int main()
                 char* LINE = strtok_s(line, " \n", &context);
                 LINE++;
 
-                processTextRecord(LINE, starting_address, i);                
+                processTextRecord(LINE, starting_address, i);
             }
             else if (line[0] == 'M')
             {
@@ -433,7 +473,7 @@ int main()
         }
     }
 
-    printMemoryBufferTable(MEM, memCount);
+    printMemoryBufferTable(OutputFile, MEM, memCount);
 
     fclose(files[0]);
     fclose(files[1]);
