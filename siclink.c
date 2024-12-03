@@ -18,7 +18,7 @@ int symbolCount = 0;
 
 int isDuplicateSymbol(const char* label)
 {
-    if (label == "")
+    if (label[0] == '\0')
     {
         return 0;
     }
@@ -55,7 +55,6 @@ int getSymbolAddress(char* name)
             return ESTAB[i].address;
         }
     }
-
     return -1;
 }
 
@@ -68,7 +67,6 @@ int getSymbolAddressFromR(char* number)
             return ESTAB[i].address;
         }
     }
-
     return -1;
 }
 
@@ -96,6 +94,17 @@ void printSymbolTable(FILE* OutputFile, Symbol ESTAB[], int symbolCount, int RRe
 
     for (int i = 0; i < symbolCount; i++)
     {
+        char* trimmedLength = ESTAB[i].length;
+        while (*trimmedLength == '0' && *(trimmedLength + 1) != '\0')
+        {
+            trimmedLength++;
+        }
+        char prefixedLength[15] = "";
+        if (*trimmedLength != '\0')
+        {
+            snprintf(prefixedLength, sizeof(prefixedLength), "0x%s", trimmedLength);
+        }
+
         if (RRecord)
         {
             fprintf(OutputFile, "%-20s %-6s %-10s 0x%-8X %-6s\n",
@@ -103,7 +112,7 @@ void printSymbolTable(FILE* OutputFile, Symbol ESTAB[], int symbolCount, int RRe
                 ESTAB[i].name,
                 ESTAB[i].num,
                 ESTAB[i].address,
-                ESTAB[i].length);
+                prefixedLength);
         }
         else
         {
@@ -111,7 +120,7 @@ void printSymbolTable(FILE* OutputFile, Symbol ESTAB[], int symbolCount, int RRe
                 ESTAB[i].control_section,
                 ESTAB[i].name,
                 ESTAB[i].address,
-                ESTAB[i].length);
+                prefixedLength);
         }
     }
 }
@@ -369,32 +378,24 @@ void processModificationRecord(char* LINE, unsigned short int starting_address, 
     }
 }
 
-//int main(int argc, char* argv[])
-int main()
+int main(int argc, char* argv[])
 {
-    /*if (argc < 4)  // Ensure at least 3 files are provided
+    if (argc < 4)  // Ensure at least 3 files are provided
     {
         printf("Usage: %s <file_path> <file_path> <file_path> [optional_additional_file_paths...]\n", argv[0]);
         return 1;
     }
-    FILE* files[argc - 1];  // Array to store file pointers
+    FILE** files = malloc((argc - 1) * sizeof(FILE*));  // Array to store file pointers
     for (int i = 1; i < argc; i++)
     {
-        files[i - 1] = fopen(argv[i], "r");
-
-        if (files[i - 1] == NULL)
+        if (fopen_s(&files[i - 1], argv[i], "r") != 0)
         {
-            fprintf(stderr, "Error opening file %s: %s\n", argv[i], strerror(errno));
-
+            char errorMsg[256];
+            strerror_s(errorMsg, sizeof(errorMsg), errno);
+            fprintf(stderr, "Error opening file %s: %s\n", argv[i], errorMsg);
             return EXIT_FAILURE;
         }
-    }*/
-
-    FILE* files[3];
-    fopen_s(&files[0], "PROGA.txt", "r");
-    fopen_s(&files[1], "PROGB.txt", "r");
-    fopen_s(&files[2], "PROGC.txt", "r");
-
+    }
 
     char line[256];
     char* context = NULL;
@@ -445,18 +446,25 @@ int main()
         }
     }
 
-    fclose(files[0]);
-    fclose(files[1]);
-    fclose(files[2]);
-    /*for (int i = 1; i < argc; i++)
+    for (int i = 1; i < argc; i++)
     {
         fclose(files[i - 1]);
-    }*/
+    }
 
     // Pass 2
-    fopen_s(&files[0], "PROGA.txt", "r");
-    fopen_s(&files[1], "PROGB.txt", "r");
-    fopen_s(&files[2], "PROGC.txt", "r");
+    for (int i = 1; i < argc; i++)
+    {
+        if (fopen_s(&files[i - 1], argv[i], "r") != 0)
+        {
+            char errorMsg[256];
+            strerror_s(errorMsg, sizeof(errorMsg), errno);
+            fprintf(stderr, "Error opening file %s: %s\n", argv[i], errorMsg);
+            return EXIT_FAILURE;
+        }
+    }
+    //fopen_s(&files[0], "PROGA.txt", "r");
+    //fopen_s(&files[1], "PROGB.txt", "r");
+    //fopen_s(&files[2], "PROGC.txt", "r");
 
     FILE* OutputFile = fopen("OutputFile.txt", "w");
     char LOCATION[9]; char HALF_BYTES[3];  char SIGN[2]; char SYMBOL[100];
@@ -537,13 +545,11 @@ int main()
     printSymbolTable(OutputFile, ESTAB, symbolCount, RRecord);
     printMemoryBufferTable(OutputFile, MEM, memCount);
 
-    fclose(files[0]);
-    fclose(files[1]);
-    fclose(files[2]);
-    /*for (int i = 1; i < argc; i++)
+    for (int i = 1; i < argc; i++)
     {
         fclose(files[i - 1]);
-    }*/
+    }
     fclose(OutputFile);
+    free(files);
     return 0;
 }
