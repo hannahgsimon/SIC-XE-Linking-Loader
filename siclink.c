@@ -380,13 +380,13 @@ void processModificationRecord(char* LINE, unsigned short int starting_address, 
 
 int main(int argc, char* argv[])
 {
-    if (argc < 4)  // Ensure at least 3 files are provided
+    if (argc < 5)  // Ensure at least 3 files are provided
     {
-        printf("Usage: %s <file_path> <file_path> <file_path> [optional_additional_file_paths...]\n", argv[0]);
+        printf("Usage: %s <file_path> <file_path> <file_path> [optional_additional_file_paths...] <starting_address_in_hex>\n", argv[0]);
         return 1;
     }
-    FILE** files = malloc((argc - 1) * sizeof(FILE*));  // Array to store file pointers
-    for (int i = 1; i < argc; i++)
+    FILE** files = malloc((argc - 2) * sizeof(FILE*));  // Array to store file pointers
+    for (int i = 1; i < argc - 1; i++)
     {
         if (fopen_s(&files[i - 1], argv[i], "r") != 0)
         {
@@ -397,9 +397,17 @@ int main(int argc, char* argv[])
         }
     }
 
+    unsigned short int starting_address = 0; char* endptr = NULL;
+
+    starting_address = (unsigned short int) strtol(argv[argc - 1], &endptr, 16);
+    if (*endptr != '\0')  // Check if conversion was successful
+    {
+        fprintf(stderr, "Invalid starting address format: %s\n", argv[argc - 1]);
+        return EXIT_FAILURE;
+    }
+
     char line[256];
     char* context = NULL;
-    unsigned short int starting_address = 0x4000;
     unsigned short int prev_starting_index = 0;
 
     // Pass 1
@@ -446,13 +454,13 @@ int main(int argc, char* argv[])
         }
     }
 
-    for (int i = 1; i < argc; i++)
+    for (int i = 1; i < argc - 1; i++)
     {
         fclose(files[i - 1]);
     }
 
     // Pass 2
-    for (int i = 1; i < argc; i++)
+    for (int i = 1; i < argc - 1; i++)
     {
         if (fopen_s(&files[i - 1], argv[i], "r") != 0)
         {
@@ -462,9 +470,6 @@ int main(int argc, char* argv[])
             return EXIT_FAILURE;
         }
     }
-    //fopen_s(&files[0], "PROGA.txt", "r");
-    //fopen_s(&files[1], "PROGB.txt", "r");
-    //fopen_s(&files[2], "PROGC.txt", "r");
 
     FILE* OutputFile = fopen("OutputFile.txt", "w");
     char LOCATION[9]; char HALF_BYTES[3];  char SIGN[2]; char SYMBOL[100];
@@ -545,7 +550,7 @@ int main(int argc, char* argv[])
     printSymbolTable(OutputFile, ESTAB, symbolCount, RRecord);
     printMemoryBufferTable(OutputFile, MEM, memCount);
 
-    for (int i = 1; i < argc; i++)
+    for (int i = 1; i < argc - 1; i++)
     {
         fclose(files[i - 1]);
     }
