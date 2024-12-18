@@ -555,6 +555,7 @@ int main(int argc, char* argv[])
         fclose(files[i - 1]);
     }
     fclose(OutputFile);
+    printf("Output file created: OutputFile.txt\n");
     free(files);
     return 0;
 }
