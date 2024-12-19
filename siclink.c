@@ -1,3 +1,6 @@
+//EXTRA CREDIT VERSION
+//Hannah Simon and Charlie Strickland
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -163,7 +166,7 @@ void printMemoryBufferTable(FILE* OutputFile, MemoryBuffer MEM[], int memCount)
     }
 }
 
-void processTextRecord(char* LINE, unsigned short int starting_address, int file_index)
+void processTextRecord(char* LINE, unsigned short int PROGADDR, int file_index)
 {
     // Adds previous control section lengths
     unsigned int base_adjustment = 0;
@@ -191,7 +194,7 @@ void processTextRecord(char* LINE, unsigned short int starting_address, int file
     hexAddress[6] = '\0';
 
     unsigned int intAddress = (unsigned int)strtol(hexAddress, NULL, 16);
-    unsigned int absoluteAddress = starting_address + base_adjustment + intAddress;
+    unsigned int absoluteAddress = PROGADDR + base_adjustment + intAddress;
 
     char hexLength[3];
     strncpy_s(hexLength, sizeof(hexLength), LINE + 6, 2);
@@ -247,7 +250,7 @@ void processTextRecord(char* LINE, unsigned short int starting_address, int file
     }
 }
 
-void processModificationRecord(char* LINE, unsigned short int starting_address, int file_index, int RRecord)
+void processModificationRecord(char* LINE, unsigned short int PROGADDR, int file_index, int RRecord)
 {
     // Adds previous control section lengths
     unsigned int base_adjustment = 0;
@@ -287,7 +290,7 @@ void processModificationRecord(char* LINE, unsigned short int starting_address, 
     strncpy_s(SYMBOL, sizeof(SYMBOL), LINE + 9, _TRUNCATE);
 
     // Convert location to absolute address
-    unsigned int address = (unsigned int)strtol(LOCATION, NULL, 16) + starting_address + base_adjustment;
+    unsigned int address = (unsigned int)strtol(LOCATION, NULL, 16) + PROGADDR + base_adjustment;
     unsigned int length = (unsigned int)strtol(HALF_BYTES, NULL, 16);
 
     // Get symbol address
@@ -397,9 +400,9 @@ int main(int argc, char* argv[])
         }
     }
 
-    unsigned short int starting_address = 0; char* endptr = NULL;
+    unsigned short int PROGADDR = 0; char* endptr = NULL;
 
-    starting_address = (unsigned short int) strtol(argv[argc - 1], &endptr, 16);
+    PROGADDR = (unsigned short int) strtol(argv[argc - 1], &endptr, 16);
     if (*endptr != '\0')  // Check if conversion was successful
     {
         fprintf(stderr, "Invalid starting address format: %s\n", argv[argc - 1]);
@@ -408,7 +411,7 @@ int main(int argc, char* argv[])
 
     char line[256];
     char* context = NULL;
-    unsigned short int prev_starting_index = 0;
+    unsigned short int prev_PROGADDR = 0;
 
     // Pass 1
     for (int i = 0; i < 3; i++) //i < argc - 1
@@ -422,11 +425,11 @@ int main(int argc, char* argv[])
                 char* length = strtok_s(NULL, " \n", &context);
                 if (i == 0)
                 {
-                    addSymbol(control_section, "", starting_address, length);
+                    addSymbol(control_section, "", PROGADDR, length);
                 }
                 else
                 {
-                    addSymbol(control_section, "", ESTAB[prev_starting_index].address + strtol(ESTAB[prev_starting_index].length, NULL, 16), length);
+                    addSymbol(control_section, "", ESTAB[prev_PROGADDR].address + strtol(ESTAB[prev_starting_index].length, NULL, 16), length);
                     prev_starting_index = symbolCount - 1;
                 }
             }
@@ -475,7 +478,7 @@ int main(int argc, char* argv[])
     char LOCATION[9]; char HALF_BYTES[3];  char SIGN[2]; char SYMBOL[100];
     int RRecord = 0; int j = 0;
 
-    for (int j = starting_address; j <= ESTAB[symbolCount - 1].address + 16; j += 16)
+    for (int j = PROGADDR; j <= ESTAB[symbolCount - 1].address + 16; j += 16)
     {
         MEM[memCount].memory_address[0] = j;
         for (int k = 0; k < 16; k++)
@@ -531,14 +534,14 @@ int main(int argc, char* argv[])
             {
                 char* LINE = strtok_s(line, " \n", &context);
                 LINE++;
-                processTextRecord(LINE, starting_address, i);
+                processTextRecord(LINE, PROGADDR, i);
             }
             else if (line[0] == 'M')
             {
                 char* LINE = strtok_s(line, " \n", &context);
                 LINE++;
 
-                processModificationRecord(LINE, starting_address, i, RRecord);
+                processModificationRecord(LINE, PROGADDR, i, RRecord);
             }
             else if (line[0] == 'E')
             {
