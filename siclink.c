@@ -1,6 +1,3 @@
-//EXTRA CREDIT VERSION
-//Hannah Simon and Charlie Strickland
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -414,7 +411,7 @@ int main(int argc, char* argv[])
     unsigned short int prev_PROGADDR = 0;
 
     // Pass 1
-    for (int i = 0; i < 3; i++) //i < argc - 1
+    for (int i = 0; i < argc - 1; i++)
     {
         while (fgets(line, sizeof(line), files[i]))
         {
@@ -429,8 +426,8 @@ int main(int argc, char* argv[])
                 }
                 else
                 {
-                    addSymbol(control_section, "", ESTAB[prev_PROGADDR].address + strtol(ESTAB[prev_starting_index].length, NULL, 16), length);
-                    prev_starting_index = symbolCount - 1;
+                    addSymbol(control_section, "", ESTAB[prev_PROGADDR].address + strtol(ESTAB[prev_PROGADDR].length, NULL, 16), length);
+                    prev_PROGADDR = symbolCount - 1;
                 }
             }
             else if (line[0] == 'D')
@@ -445,7 +442,7 @@ int main(int argc, char* argv[])
                     strncpy_s(address, sizeof(address), next, 6);
                     address[6] = '\0';
                     unsigned short int ADDRESS = (unsigned short int)strtol(address, NULL, 16); // Convert ADDRESS (hex string) to an unsigned short integer
-                    addSymbol("", SYMBOL, ADDRESS + ESTAB[prev_starting_index].address, "");
+                    addSymbol("", SYMBOL, ADDRESS + ESTAB[prev_PROGADDR].address, "");
                     SYMBOL = next + 6;
                     next = strtok_s(NULL, " \n", &context);
                 }
@@ -487,7 +484,7 @@ int main(int argc, char* argv[])
         }
         memCount++;
     }
-    for (int i = 0; i < 3; i++) //i < argc - 1
+    for (int i = 0; i < argc - 1; i++)
     {
         while (fgets(line, sizeof(line), files[i]))
         {
