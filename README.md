@@ -15,38 +15,34 @@
 - Error Reporting: Identifies and reports errors for duplicate or undefined external symbols.
 - File Output: Generates tables for symbol and memory buffer contents for easy visualization.
 
-## Requirements
-- C Compiler (e.g., GCC, MSVC)
-- Command-line interface to run the assembler program
-- Standard C libraries: `stdio.h`, `stdlib.h`, `string.h`, `errno.h`, `ctype.h`
-
-## Compilation  
-Compile the source file into an executable:  
-```bash
-gcc siclink.c -o siclink
-```
-
-## Execution  
-- Run the program with at least 3 object file names and the starting address (in hexadecimal) passed as command-line arguments.
-- Sample input and output files are included in the `Standard_SIC_XE sample_io` and `Enhanced_SIC_XE sample_io` directories for reference.
-  - `Standard_SIC_XE sample_io`
+## Setup & Usage
+1. Ensure the following prerequisites are installed:
+    - C Compiler (e.g., GCC, MSVC)
+    - Command-line interface to run the assembler program
+    - Standard C libraries: `stdio.h`, `stdlib.h`, `string.h`, `errno.h`, `ctype.h`
+2. Compile the source file into an executable:  
     ```bash
-    ./siclink PROGA.txt PROGB.txt PROGC.txt 4000
+    gcc siclink.c -o siclink
     ```
-  - `Enhanced_SIC_XE sample_io`
-    ```bash
-    ./siclink EC_PROGA.txt EC_PROGB.txt EC_PROGC.txt 4000
-    ```
+3. Run the program with at least 3 object file names and the starting address (in hexadecimal) passed as command-line arguments.
+   Sample input and output files are included in the `Standard_SIC_XE sample_io` and `Enhanced_SIC_XE sample_io` directories for reference.
+    - `Standard_SIC_XE sample_io` argument:
+      ```bash
+      ./siclink PROGA.txt PROGB.txt PROGC.txt 4000
+      ```
+    - `Enhanced_SIC_XE sample_io` argument:
+      ```bash
+      ./siclink EC_PROGA.txt EC_PROGB.txt EC_PROGC.txt 4000
+      ```
 
 ## Output  
 The program generates an output file named **`outfile.txt`**, containing:  
 1. **ESTAB (External Symbol Table)**
 2. **MEM (Memory Contents After Linking)**  
-   - Four groups of four bytes per row, separated by two spaces.  
-   - Memory address of the first byte in each row is displayed on the left.  
-   - Gaps in memory are displayed as `........`.  
-3. **Program Counter (PC):** Displays `Program Counter set to xxxxxx` (value of `EXECADDR` from Pass 2).  
-4. **Errors:** If a duplicate or undefined external symbol is encountered, the error is written to `outfile`, and the program terminates.
+   - Four groups of four bytes per row, separated by two spaces
+   - Memory address of the first byte in each row is displayed on the left
+   - Gaps in memory are displayed as `........`
+3. **Errors:** If a duplicate or undefined external symbol is encountered, the error is written to the console and the program terminates.
 
 ## References
 [1] Beck, L. L. (1997). *System Software: An Introduction to Systems Programming* (3rd ed.). Addison-Wesley.  
